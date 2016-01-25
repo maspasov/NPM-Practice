@@ -1,3 +1,6 @@
+//----------------------------------------------------------------------
+// Plugins
+//----------------------------------------------------------------------
 var gulp 		= require("gulp"),
 	sass 		= require("gulp-sass"),
 	concat 		= require("gulp-concat"),
@@ -9,43 +12,107 @@ var gulp 		= require("gulp"),
 	notify 		= require("gulp-notify");
 	prefix		= require("gulp-autoprefixer"),
 	imagemin 	= require("gulp-imagemin"),
-	pngquant 	= require("imagemin-pngquant");
+	jshint 		= require("gulp-jshint"),
+	pngquant 	= require("imagemin-pngquant"),
+	browserSync	= require("browser-sync");
 
 //----------------------------------------------------------------------
+// Settings
+//----------------------------------------------------------------------
+var src = {
+	sass: "src/sass/**/*.scss",
+	js: "src/js/**/*.js",
+	img: "src/img/*"
+};
 
-var dest_js = "dist/js"; 
-var dest_css = "dist/css";
-
-var src_sass = "src/sass/**/*.scss";
-var src_js = "src/js/**/*.js";
+var output = {
+	css: "output/css",
+	js: "output/js",
+	img: "output/img/",
+	html: "output/index.html",
+	min_css: "app.min.css",
+	min_js: "app.min.js"
+}
 
 //----------------------------------------------------------------------
+// Error Handler
+//----------------------------------------------------------------------
+var onError = function(err) {
+	console.log(err);
+	this.imit('end');
+};
 
 
+//----------------------------------------------------------------------
 //SASS to CSS
 
 gulp.task('sass', function() {
-	gulp.src(src_sass)
-		.pipe(plumber())
+	return gulp.src(src.sass)
+		.pipe(plumber({
+			errorHangler: onError,
+		}))
 		.pipe(sass())
 		.pipe(prefix('last 2 versions'))
-		.pipe(concat('app.min.css'))
-		.pipe(gulp.dest(dest_css))
+		.pipe(concat(output.min_css))
+		.pipe(gulp.dest(output.css))
+		.pipe(minify_css())
 		.pipe(sourcemaps.init())
 		.pipe(sourcemaps.write())
-		// .pipe(minify_css())
-		.pipe(gulp.dest(dest_css))
+		.pipe(gulp.dest(output.css))
+		.pipe(browserSync.reload({stram: true}));
+		// .pipe(notify({message: "Hello world we are done"}));
 });
 
+
 //----------------------------------------------------------------------
-
-
 //Compile JS
 
 gulp.task('js', function() {
-	gulp.src(src_js)
-		.pipe(plumber())
+	return  gulp.src(src.js)
+		.pipe(plumber({
+			errorHangler: onError,
+		}))
+		.pipe(jshint())
+		.pipe(jshint.reporter('default'))
 		.pipe(uglify())
-		.pipe(concat('app.min.js'))
-		.pipe(gulp.dest(dest_js))
+		.pipe(concat(output.min_js))
+		.pipe(sourcemaps.init())
+		.pipe(sourcemaps.write())
+		.pipe(gulp.dest(output.js))
+		.pipe(browserSync.reload({stram: true}));
 });
+
+
+//----------------------------------------------------------------------
+//Images
+
+gulp.task('img', function() {
+	return gulp.src(src.img)
+		.pipe(imagemin({
+			progressive: true,
+			svgoPlugins: [{removeViewBox: false}],
+			use: [pngquant()]
+		}))
+		.pipe(gulp.dest(output.js));
+});
+
+
+//----------------------------------------------------------------------
+//Watch
+
+gulp.task('watch', function() {
+	browserSync.init({
+		// proxy: 'dommlotto.dev'
+		server: './output'
+	});
+	gulp.watch(src.sass, ['sass']);
+	gulp.watch(src.js, ['js']);
+	gulp.watch(src.img, ['img']);
+	gulp.watch(output.html).on('change', browserSync.reload);
+});
+
+//----------------------------------------------------------------------
+//Default
+
+
+gulp.task('default', ['watch', 'sass', 'js', 'img']);
